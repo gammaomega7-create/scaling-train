@@ -1,0 +1,41 @@
+name: 좌석 대기 예약
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_min:
+        description: "대기할 시간(분, 최대 350)"
+        default: "120"
+      seats:
+        description: "선호 좌석 번호, 쉼표로 구분 (비우면 아무 자리)"
+        default: ""
+      notify_only:
+        description: "예약하지 않고 알림만 받기"
+        type: boolean
+        default: false
+
+# 동시에 두 개가 돌면 좌석을 두 번 잡으려 할 수 있으므로 하나만 실행한다.
+concurrency:
+  group: seatbot
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m seatbot
+        env:
+          PNU_ID: ${{ secrets.PNU_ID }}
+          PNU_PW: ${{ secrets.PNU_PW }}
+          ROOM_IDS: ${{ vars.ROOM_IDS }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          INTERVAL_SEC: ${{ vars.INTERVAL_SEC || '30' }}
+          DURATION_MIN: ${{ inputs.duration_min }}
+          SEATS: ${{ inputs.seats }}
+          NOTIFY_ONLY: ${{ inputs.notify_only }}
