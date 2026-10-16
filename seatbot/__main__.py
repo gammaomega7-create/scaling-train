@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from .client import PnuPlaceClient
+from .client import PnuLibraryClient
 from .config import Config, ConfigError
 from .runner import run
 
@@ -13,7 +13,7 @@ def main() -> int:
     except ConfigError as e:
         print(e, file=sys.stderr)
         return 2
-    return 0 if run(cfg, PnuPlaceClient()) else 1
+    return 0 if run(cfg, PnuLibraryClient()) else 1
 
 
 if __name__ == "__main__":

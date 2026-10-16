@@ -1,7 +1,7 @@
 """좌석 시스템과 통신하는 부분.
 
-PNU Place 앱의 실제 API(주소, 요청 형식)는 아직 확인되지 않았다.
-앱 트래픽을 캡처한 뒤 PnuPlaceClient의 TODO 부분을 채운다. (README 참고)
+부산대 도서관 앱의 실제 API(주소, 요청 형식)는 아직 확인되지 않았다.
+앱 트래픽을 캡처한 뒤 PnuLibraryClient의 TODO 부분을 채운다. (README 참고)
 """
 
 from dataclasses import dataclass
@@ -35,8 +35,8 @@ class SeatClient(Protocol):
     def has_active_reservation(self) -> bool: ...
 
 
-class PnuPlaceClient:
-    """PNU Place 실제 클라이언트. API 확인 후 구현한다."""
+class PnuLibraryClient:
+    """부산대 도서관 앱 실제 클라이언트. API 확인 후 구현한다."""
 
     BASE_URL = ""  # TODO: 캡처한 API 서버 주소
 
@@ -48,13 +48,13 @@ class PnuPlaceClient:
         # 요청을 보낼 때는 항상 timeout=10 을 넘긴다.
 
     def login(self, student_id: str, password: str) -> None:
-        raise NotImplementedError("PNU Place 로그인 API 정보가 필요합니다.")
+        raise NotImplementedError("도서관 앱 로그인 API 정보가 필요합니다.")
 
     def list_seats(self, room_id: str) -> list[Seat]:
-        raise NotImplementedError("PNU Place 좌석 조회 API 정보가 필요합니다.")
+        raise NotImplementedError("도서관 앱 좌석 조회 API 정보가 필요합니다.")
 
     def reserve(self, seat: Seat) -> None:
-        raise NotImplementedError("PNU Place 좌석 예약 API 정보가 필요합니다.")
+        raise NotImplementedError("도서관 앱 좌석 예약 API 정보가 필요합니다.")
 
     def has_active_reservation(self) -> bool:
-        raise NotImplementedError("PNU Place 내 예약 조회 API 정보가 필요합니다.")
+        raise NotImplementedError("도서관 앱 내 예약 조회 API 정보가 필요합니다.")
