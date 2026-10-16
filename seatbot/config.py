@@ -13,6 +13,8 @@ ROOM_CATALOG = Path(__file__).resolve().parent.parent / "rooms.json"
 
 ANY_SEAT = "*"
 
+MODES = ("reserve", "notify", "check")
+
 
 class ConfigError(ValueError):
     pass
@@ -26,7 +28,7 @@ class Room:
 
 @dataclass(frozen=True)
 class SeatPref:
-    seat: str              # 좌석 번호, 또는 ANY_SEAT
+    seat: str              # 좌석 번호(예: "50" 또는 "050"), 또는 ANY_SEAT
     room: str | None = None  # 열람실 이름. None이면 고른 열람실 아무 데나
 
 
@@ -85,7 +87,7 @@ class Config:
     preferred_seats: list[SeatPref] = field(default_factory=list)
     interval_sec: float = 3.0
     duration_min: int = 120
-    notify_only: bool = False
+    mode: str = "reserve"  # reserve: 예약, notify: 알림만, check: 연결만 확인
     ntfy_topic: str = ""
 
     @classmethod
@@ -103,6 +105,10 @@ class Config:
         if not 1 <= duration <= 350:
             raise ConfigError("DURATION_MIN은 1~350 사이여야 합니다.")
 
+        mode = (env.get("MODE") or "reserve").strip().lower()
+        if mode not in MODES:
+            raise ConfigError(f"MODE는 {', '.join(MODES)} 중 하나여야 합니다.")
+
         rooms = resolve_rooms(_split(env["ROOMS"]), load_catalog() if catalog is None else catalog)
         return cls(
             student_id=env["PNU_ID"],
@@ -111,6 +117,6 @@ class Config:
             preferred_seats=parse_seat_prefs(env.get("SEATS", ""), rooms),
             interval_sec=interval,
             duration_min=duration,
-            notify_only=env.get("NOTIFY_ONLY", "").lower() in ("1", "true", "yes"),
+            mode=mode,
             ntfy_topic=env.get("NTFY_TOPIC", ""),
         )

@@ -7,15 +7,16 @@ on:
         description: "대기할 시간(분, 최대 350)"
         default: "120"
       rooms:
-        description: "열람실, 쉼표로 구분, 앞쪽일수록 우선 (비우면 기본값 ROOMS 변수)"
+        description: "열람실, 쉼표로 구분, 앞쪽일수록 우선 (예: 3열람실-A, 3열람실-D) 비우면 ROOMS 변수"
         default: ""
       seats:
-        description: "선호 좌석, 쉼표로 구분. A12 / 제1열람실:A12 / 제1열람실:* (비우면 아무 자리)"
+        description: "선호 좌석, 쉼표로 구분. 50 / 3열람실-A:50 / 3열람실-A:* (비우면 아무 자리)"
         default: ""
-      notify_only:
-        description: "예약하지 않고 알림만 받기"
-        type: boolean
-        default: false
+      mode:
+        description: "reserve: 예약 / notify: 알림만 / check: 로그인·조회만 시험"
+        type: choice
+        options: [reserve, notify, check]
+        default: reserve
 
 # 동시에 두 개가 돌면 좌석을 두 번 잡으려 할 수 있으므로 하나만 실행한다.
 concurrency:
@@ -41,4 +42,4 @@ jobs:
           INTERVAL_SEC: ${{ vars.INTERVAL_SEC || '3' }}
           DURATION_MIN: ${{ inputs.duration_min }}
           SEATS: ${{ inputs.seats }}
-          NOTIFY_ONLY: ${{ inputs.notify_only }}
+          MODE: ${{ inputs.mode }}
