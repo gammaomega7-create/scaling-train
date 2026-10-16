@@ -3,8 +3,8 @@
 import os
 from dataclasses import dataclass, field
 
-# 서버에 부담을 주거나 다른 학생보다 과도하게 유리해지지 않도록 최소 간격을 강제한다.
-MIN_INTERVAL_SEC = 20
+# 사람이 손으로 새로고침하는 속도(약 2초에 1번)보다 빠르게는 요청하지 않는다.
+MIN_INTERVAL_SEC = 2.0
 
 
 class ConfigError(ValueError):
@@ -21,7 +21,7 @@ class Config:
     password: str
     room_ids: list[str]
     preferred_seats: list[str] = field(default_factory=list)
-    interval_sec: int = 30
+    interval_sec: float = 3.0
     duration_min: int = 120
     notify_only: bool = False
     ntfy_topic: str = ""
@@ -32,9 +32,9 @@ class Config:
         if missing:
             raise ConfigError(f"필수 환경 변수가 없습니다: {', '.join(missing)}")
 
-        interval = int(env.get("INTERVAL_SEC") or 30)
+        interval = float(env.get("INTERVAL_SEC") or 3)
         if interval < MIN_INTERVAL_SEC:
-            raise ConfigError(f"INTERVAL_SEC는 {MIN_INTERVAL_SEC}초 이상이어야 합니다.")
+            raise ConfigError(f"INTERVAL_SEC는 {MIN_INTERVAL_SEC:g}초 이상이어야 합니다.")
 
         duration = int(env.get("DURATION_MIN") or 120)
         # GitHub Actions 작업 하나는 최대 6시간까지만 실행된다.

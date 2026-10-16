@@ -12,6 +12,7 @@ from .notify import notify
 log = logging.getLogger(__name__)
 
 MAX_CONSECUTIVE_ERRORS = 5
+MAX_BACKOFF_SEC = 60
 
 
 def pick_seat(seats: list[Seat], preferred: list[str]) -> Seat | None:
@@ -24,6 +25,18 @@ def pick_seat(seats: list[Seat], preferred: list[str]) -> Seat | None:
         if name in by_name:
             return by_name[name]
     return None
+
+
+def next_delay(interval: float, errors: int) -> float:
+    """다음 조회까지 기다릴 시간.
+
+    일정한 주기로 요청하지 않도록 무작위 간격을 더하고, 오류가 나면
+    (서버가 바쁘거나 요청을 막는 중일 수 있으므로) 점점 더 오래 쉰다.
+    """
+    base = interval + random.uniform(0, interval * 0.5)
+    if errors:
+        base = max(base, min(MAX_BACKOFF_SEC, interval * 2 ** errors))
+    return base
 
 
 def run(
@@ -80,8 +93,7 @@ def run(
                 notify(cfg.ntfy_topic, "봇 중단", f"오류가 계속되어 종료합니다: {e}")
                 raise
 
-        # 일정한 주기로 요청하지 않도록 약간의 무작위 간격을 더한다.
-        sleep(cfg.interval_sec + random.uniform(0, cfg.interval_sec * 0.3))
+        sleep(next_delay(cfg.interval_sec, errors))
 
     notify(cfg.ntfy_topic, "대기 종료", f"{cfg.duration_min}분 동안 빈자리가 나지 않았습니다.")
     return None

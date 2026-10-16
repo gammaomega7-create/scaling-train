@@ -3,7 +3,7 @@ from unittest import mock
 
 from seatbot.client import AuthExpired, ReserveFailed, Seat
 from seatbot.config import Config, ConfigError
-from seatbot.runner import pick_seat, run
+from seatbot.runner import MAX_BACKOFF_SEC, next_delay, pick_seat, run
 
 
 def seat(name, available=True, room="R1"):
@@ -49,7 +49,7 @@ class Clock:
 
 
 def cfg(**kw):
-    base = dict(student_id="1", password="p", room_ids=["R1"], interval_sec=30, duration_min=10)
+    base = dict(student_id="1", password="p", room_ids=["R1"], interval_sec=3, duration_min=10)
     base.update(kw)
     return Config(**base)
 
@@ -62,7 +62,7 @@ class RunTest(unittest.TestCase):
         got = run(cfg(), client, clock.sleep, clock.now)
         self.assertEqual(got.name, "A1")
         self.assertEqual(client.reserved, [seat("A1")])
-        self.assertGreaterEqual(clock.t, 60)
+        self.assertGreaterEqual(clock.t, 6)
 
     def test_gives_up_after_duration(self, _):
         client = FakeClient([[seat("A1", False)]])
@@ -114,6 +114,16 @@ class PickSeatTest(unittest.TestCase):
         self.assertIsNone(pick_seat([seat("A1")], ["Z9"]))
 
 
+class NextDelayTest(unittest.TestCase):
+    def test_normal_delay_stays_near_interval(self):
+        for _ in range(100):
+            self.assertTrue(2 <= next_delay(2, 0) <= 3)
+
+    def test_backs_off_on_errors(self):
+        self.assertGreaterEqual(next_delay(2, 3), 16)
+        self.assertLessEqual(next_delay(2, 10), MAX_BACKOFF_SEC + 1)
+
+
 class ConfigTest(unittest.TestCase):
     ENV = {"PNU_ID": "1", "PNU_PW": "p", "ROOM_IDS": "R1, R2", "SEATS": "A1,A2"}
 
@@ -122,9 +132,12 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(c.room_ids, ["R1", "R2"])
         self.assertEqual(c.preferred_seats, ["A1", "A2"])
 
+    def test_accepts_fractional_interval(self):
+        self.assertEqual(Config.from_env({**self.ENV, "INTERVAL_SEC": "2.5"}).interval_sec, 2.5)
+
     def test_rejects_too_fast_interval(self):
         with self.assertRaises(ConfigError):
-            Config.from_env({**self.ENV, "INTERVAL_SEC": "5"})
+            Config.from_env({**self.ENV, "INTERVAL_SEC": "1"})
 
     def test_requires_credentials(self):
         with self.assertRaises(ConfigError):

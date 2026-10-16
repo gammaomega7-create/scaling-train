@@ -35,7 +35,7 @@ jobs:
           PNU_PW: ${{ secrets.PNU_PW }}
           ROOM_IDS: ${{ vars.ROOM_IDS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          INTERVAL_SEC: ${{ vars.INTERVAL_SEC || '30' }}
+          INTERVAL_SEC: ${{ vars.INTERVAL_SEC || '3' }}
           DURATION_MIN: ${{ inputs.duration_min }}
           SEATS: ${{ inputs.seats }}
           NOTIFY_ONLY: ${{ inputs.notify_only }}
