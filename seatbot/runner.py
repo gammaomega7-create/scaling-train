@@ -6,7 +6,7 @@ import time
 from typing import Callable
 
 from .client import AlreadyReserved, AuthExpired, ReserveFailed, Seat, SeatClient
-from .config import Config
+from .config import ANY_SEAT, Config, Room, SeatPref
 from .notify import notify
 
 log = logging.getLogger(__name__)
@@ -15,16 +15,26 @@ MAX_CONSECUTIVE_ERRORS = 5
 MAX_BACKOFF_SEC = 60
 
 
-def pick_seat(seats: list[Seat], preferred: list[str]) -> Seat | None:
-    """선호 좌석 목록 순서대로 고르고, 목록이 비어 있으면 아무 빈자리나 고른다."""
-    free = [s for s in seats if s.available]
+def candidates(
+    seats_by_room: list[tuple[Room, list[Seat]]], preferred: list[SeatPref]
+) -> list[tuple[Room, Seat]]:
+    """예약을 시도할 빈자리를 우선순위 순서로 돌려준다.
+
+    선호 좌석이 없으면 열람실 순서대로 아무 빈자리나, 있으면 선호 목록 순서대로
+    그 조건에 맞는 빈자리만 고른다. 고른 열람실 밖의 좌석은 절대 고르지 않는다.
+    """
+    free = [(room, s) for room, seats in seats_by_room for s in seats if s.available]
     if not preferred:
-        return free[0] if free else None
-    by_name = {s.name: s for s in free}
-    for name in preferred:
-        if name in by_name:
-            return by_name[name]
-    return None
+        return free
+
+    picked = []
+    for pref in preferred:
+        for room, s in free:
+            if pref.room not in (None, room.name):
+                continue
+            if pref.seat in (ANY_SEAT, s.name) and (room, s) not in picked:
+                picked.append((room, s))
+    return picked
 
 
 def next_delay(interval: float, errors: int) -> float:
@@ -53,27 +63,27 @@ def run(
         notify(cfg.ntfy_topic, "이미 예약 있음", "이용 중인 좌석이 있어 종료합니다.")
         return None
 
+    log.info("대상 열람실: %s", ", ".join(r.name for r in cfg.rooms))
     errors = 0
     attempt = 0
     while now() < deadline:
         attempt += 1
         try:
-            for room_id in cfg.room_ids:
-                seat = pick_seat(client.list_seats(room_id), cfg.preferred_seats)
-                if not seat:
-                    continue
+            seats_by_room = [(room, client.list_seats(room.id)) for room in cfg.rooms]
+            for room, seat in candidates(seats_by_room, cfg.preferred_seats):
+                label = f"{room.name} {seat.name}"
                 if cfg.notify_only:
-                    notify(cfg.ntfy_topic, "빈자리 발견", f"{seat.name} 좌석이 비었습니다. 앱에서 예약하세요.")
+                    notify(cfg.ntfy_topic, "빈자리 발견", f"{label} 좌석이 비었습니다. 앱에서 예약하세요.")
                     return seat
                 try:
                     client.reserve(seat)
                 except ReserveFailed as e:
-                    log.info("%s 예약 실패(%s), 계속 대기", seat.name, e)
+                    log.info("%s 예약 실패(%s), 다음 후보 시도", label, e)
                     continue
-                notify(cfg.ntfy_topic, "예약 성공", f"{seat.name} 좌석을 예약했습니다. 시간 안에 입실하세요.")
+                notify(cfg.ntfy_topic, "예약 성공", f"{label} 좌석을 예약했습니다. 시간 안에 입실하세요.")
                 return seat
             errors = 0
-            log.info("시도 %d: 빈자리 없음", attempt)
+            log.info("시도 %d: 원하는 빈자리 없음", attempt)
         except AuthExpired:
             # 로그인 직후에도 계속 만료되면 아래 오류 횟수 제한에 걸리도록 센다.
             errors += 1
